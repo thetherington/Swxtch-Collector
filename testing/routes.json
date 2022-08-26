@@ -3,5 +3,6 @@
     "/swxtch/debug/v1/serviceStatus": "/serviceStatus",
     "/swxtch/debug/v1/agents": "/agents",
     "/swxtch/mesh/v1/tool/listSwitchLinks": "/listSwitchLinks",
-    "/swxtch/mesh/v1/tool/listSwitchRouteTable": "/listSwitchRouteTable"
+    "/swxtch/mesh/v1/tool/listSwitchRouteTable": "/listSwitchRouteTable",
+    "/swxtch/mesh/v1/tool/listAgentSubscription": "/listAgentSubscription"
 }

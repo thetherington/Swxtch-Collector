@@ -74,15 +74,15 @@ class DebugAgents:
         agents = self.__agents.fetch()
 
         if agents:
+            for agent in agents:
 
-            try:
+                try:
 
-                for agent in agents:
                     document = {"fields": agent, "host": self.host, "name": "debug_agent"}
                     documents.append(document)
 
-            except Exception:
-                pass
+                except Exception:
+                    continue
 
         return documents
 
@@ -100,12 +100,10 @@ class SwitchLinks:
         if meshes and isinstance(meshes, list):
             for mesh in meshes:
 
-                try:
+                if mesh["switchLinksList"] and isinstance(mesh["switchLinksList"], list):
+                    for link in mesh["switchLinksList"]:
 
-                    if mesh["switchLinksList"] and isinstance(
-                        mesh["switchLinksList"], list
-                    ):
-                        for link in mesh["switchLinksList"]:
+                        try:
 
                             fields = {
                                 "s_meshname": mesh["meshName"],
@@ -121,8 +119,8 @@ class SwitchLinks:
 
                             documents.append(document)
 
-                except Exception:
-                    pass
+                        except Exception:
+                            continue
 
         return documents
 
@@ -143,19 +141,61 @@ class SwitchRouteTable:
                 if mesh["switchRouteList"] and isinstance(mesh["switchRouteList"], list):
                     for route in mesh["switchRouteList"]:
 
-                        fields = {
-                            "s_meshname": mesh["meshName"],
-                            "s_switchdst": route["switchDst"],
-                            "as_switchLinks": route["switchLinks"],
-                        }
+                        try:
 
-                        document = {
-                            "fields": fields,
-                            "host": self.host,
-                            "name": "switch_route_table",
-                        }
+                            fields = {
+                                "s_meshname": mesh["meshName"],
+                                "s_switchdst": route["switchDst"],
+                                "as_switchLinks": route["switchLinks"],
+                            }
 
-                        documents.append(document)
+                            document = {
+                                "fields": fields,
+                                "host": self.host,
+                                "name": "switch_route_table",
+                            }
+
+                            documents.append(document)
+
+                        except Exception:
+                            continue
+
+        return documents
+
+
+class SwitchAgentSubscriptions:
+    def __init__(self):
+        self.path = "swxtch/mesh/v1/tool"
+        self.__agentSub = Parameters(self.host, self.path, "listAgentSubscription")
+
+    def switch_agent_subs_fetch(self):
+
+        documents = []
+        subs = self.__agentSub.fetch()
+
+        if subs and isinstance(subs, list):
+            for sub in subs:
+
+                try:
+
+                    fields = {
+                        "s_mcastgroupip": sub["mcastGroupIp"],
+                        "as_subagents": [
+                            "{}:{}".format(k, v)
+                            for k, v in sub["subscribedAgents"].items()
+                        ],
+                    }
+
+                    document = {
+                        "fields": fields,
+                        "host": self.host,
+                        "name": "switch_agent_sub",
+                    }
+
+                    documents.append(document)
+
+                except Exception:
+                    continue
 
         return documents
 
@@ -195,7 +235,9 @@ class Parameters:
             return None
 
 
-class Swxtch(DebugStatus, DebugAgents, SwitchLinks, SwitchRouteTable):
+class Swxtch(
+    DebugStatus, DebugAgents, SwitchLinks, SwitchRouteTable, SwitchAgentSubscriptions
+):
     def __init__(self, host, *args):
         self.host = host
 
@@ -206,12 +248,14 @@ class Swxtch(DebugStatus, DebugAgents, SwitchLinks, SwitchRouteTable):
         DebugAgents.__init__(self)
         SwitchLinks.__init__(self)
         SwitchRouteTable.__init__(self)
+        SwitchAgentSubscriptions.__init__(self)
 
         self.exec_list = [
             self.debug_status_fetch,
             self.debug_agents_fetch,
             self.switch_links_fetch,
             self.switch_route_table_fetch,
+            self.switch_agent_subs_fetch,
         ]
 
         self.documents = []
