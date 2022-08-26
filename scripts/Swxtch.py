@@ -56,6 +56,9 @@ class DebugStatus:
             except Exception:
                 pass
 
+        if len(fields.keys()) == 0:
+            return []
+
         document = {"fields": fields, "host": self.host, "name": "debug_status"}
 
         return [document]
@@ -162,7 +165,7 @@ class Swxtch(DebugStatus, DebugAgents):
 
 
 def main():
-    swxtch = Swxtch("localhost:3000")
+    swxtch = Swxtch(host="localhost:3000")
 
     print(json.dumps(swxtch.collect, indent=1))
 
