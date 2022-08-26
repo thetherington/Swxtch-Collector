@@ -33,5 +33,20 @@
                 }
             ]
         }
+    ],
+    "listSwitchRouteTable": [
+        {
+            "meshName": "customer-mesh",
+            "switchRouteList": [
+                {
+                    "switchDst": "230.1.10.10",
+                    "switchLinks": ["230.1.10.10"]
+                },
+                {
+                    "switchDst": "192.168.0.20",
+                    "switchLinks": ["192.168.0.20", "230.1.10.20"]
+                }
+            ]
+        }
     ]
 }

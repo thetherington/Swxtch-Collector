@@ -95,22 +95,22 @@ class SwitchLinks:
     def switch_links_fetch(self):
 
         documents = []
-        links = self.__links.fetch()
+        meshes = self.__links.fetch()
 
-        if links and isinstance(links, list):
-            for link in links:
+        if meshes and isinstance(meshes, list):
+            for mesh in meshes:
 
                 try:
 
-                    if link["switchLinksList"] and isinstance(
-                        link["switchLinksList"], list
+                    if mesh["switchLinksList"] and isinstance(
+                        mesh["switchLinksList"], list
                     ):
-                        for switch_link in link["switchLinksList"]:
+                        for link in mesh["switchLinksList"]:
 
                             fields = {
-                                "s_meshname": link["meshName"],
-                                "s_switch": switch_link["switch"],
-                                "as_switchlinks": switch_link["switchLinks"],
+                                "s_meshname": mesh["meshName"],
+                                "s_switch": link["switch"],
+                                "as_switchlinks": link["switchLinks"],
                             }
 
                             document = {
@@ -123,6 +123,39 @@ class SwitchLinks:
 
                 except Exception:
                     pass
+
+        return documents
+
+
+class SwitchRouteTable:
+    def __init__(self):
+        self.path = "swxtch/mesh/v1/tool"
+        self.__routeTable = Parameters(self.host, self.path, "listSwitchRouteTable")
+
+    def switch_route_table_fetch(self):
+
+        documents = []
+        meshes = self.__routeTable.fetch()
+
+        if meshes and isinstance(meshes, list):
+            for mesh in meshes:
+
+                if mesh["switchRouteList"] and isinstance(mesh["switchRouteList"], list):
+                    for route in mesh["switchRouteList"]:
+
+                        fields = {
+                            "s_meshname": mesh["meshName"],
+                            "s_switchdst": route["switchDst"],
+                            "as_switchLinks": route["switchLinks"],
+                        }
+
+                        document = {
+                            "fields": fields,
+                            "host": self.host,
+                            "name": "switch_route_table",
+                        }
+
+                        documents.append(document)
 
         return documents
 
@@ -140,7 +173,7 @@ class Parameters:
     def fetch(self):
 
         try:
-            resp = requests.get(self.url)
+            resp = requests.get(self.url, verify=False, timeout=10)
 
             resp.close()
 
@@ -162,7 +195,7 @@ class Parameters:
             return None
 
 
-class Swxtch(DebugStatus, DebugAgents, SwitchLinks):
+class Swxtch(DebugStatus, DebugAgents, SwitchLinks, SwitchRouteTable):
     def __init__(self, host, *args):
         self.host = host
 
@@ -172,11 +205,13 @@ class Swxtch(DebugStatus, DebugAgents, SwitchLinks):
         DebugStatus.__init__(self)
         DebugAgents.__init__(self)
         SwitchLinks.__init__(self)
+        SwitchRouteTable.__init__(self)
 
         self.exec_list = [
             self.debug_status_fetch,
             self.debug_agents_fetch,
             self.switch_links_fetch,
+            self.switch_route_table_fetch,
         ]
 
         self.documents = []
