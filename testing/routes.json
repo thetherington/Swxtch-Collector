@@ -1,5 +1,6 @@
 {
     "/swxtch/debug/v1/startTime": "/startTime",
     "/swxtch/debug/v1/serviceStatus": "/serviceStatus",
-    "/swxtch/debug/v1/agents": "/agents"
+    "/swxtch/debug/v1/agents": "/agents",
+    "/swxtch/mesh/v1/tool/listSwitchLinks": "/listSwitchLinks"
 }

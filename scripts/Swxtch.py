@@ -14,7 +14,6 @@ requests.packages.urllib3.disable_warnings()
 class DebugStatus:
     def __init__(self):
         self.path = "swxtch/debug/v1"
-
         self.__startTime = Parameters(self.host, self.path, "startTime")
         self.__serviceStatus = Parameters(self.host, self.path, "serviceStatus")
 
@@ -67,13 +66,11 @@ class DebugStatus:
 class DebugAgents:
     def __init__(self):
         self.path = "swxtch/debug/v1"
-
         self.__agents = Parameters(self.host, self.path, "agents")
 
     def debug_agents_fetch(self):
 
         documents = []
-
         agents = self.__agents.fetch()
 
         if agents:
@@ -81,13 +78,51 @@ class DebugAgents:
             try:
 
                 for agent in agents:
-
                     document = {"fields": agent, "host": self.host, "name": "debug_agent"}
-
                     documents.append(document)
 
             except Exception:
                 pass
+
+        return documents
+
+
+class SwitchLinks:
+    def __init__(self):
+        self.path = "swxtch/mesh/v1/tool"
+        self.__links = Parameters(self.host, self.path, "listSwitchLinks")
+
+    def switch_links_fetch(self):
+
+        documents = []
+        links = self.__links.fetch()
+
+        if links and isinstance(links, list):
+            for link in links:
+
+                try:
+
+                    if link["switchLinksList"] and isinstance(
+                        link["switchLinksList"], list
+                    ):
+                        for switch_link in link["switchLinksList"]:
+
+                            fields = {
+                                "s_meshname": link["meshName"],
+                                "s_switch": switch_link["switch"],
+                                "as_switchlinks": switch_link["switchLinks"],
+                            }
+
+                            document = {
+                                "fields": fields,
+                                "host": self.host,
+                                "name": "switch_links",
+                            }
+
+                            documents.append(document)
+
+                except Exception:
+                    pass
 
         return documents
 
@@ -127,7 +162,7 @@ class Parameters:
             return None
 
 
-class Swxtch(DebugStatus, DebugAgents):
+class Swxtch(DebugStatus, DebugAgents, SwitchLinks):
     def __init__(self, host, *args):
         self.host = host
 
@@ -136,8 +171,13 @@ class Swxtch(DebugStatus, DebugAgents):
 
         DebugStatus.__init__(self)
         DebugAgents.__init__(self)
+        SwitchLinks.__init__(self)
 
-        self.exec_list = [self.debug_status_fetch, self.debug_agents_fetch]
+        self.exec_list = [
+            self.debug_status_fetch,
+            self.debug_agents_fetch,
+            self.switch_links_fetch,
+        ]
 
         self.documents = []
 

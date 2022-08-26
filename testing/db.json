@@ -18,5 +18,20 @@
             "data_port": 9999,
             "data_mac": "00:0D:3A:98:59:47"
         }
+    ],
+    "listSwitchLinks": [
+        {
+            "meshName": "customer-mesh",
+            "switchLinksList": [
+                {
+                    "switch": "192.168.0.10",
+                    "switchLinks": ["192.168.0.20"]
+                },
+                {
+                    "switch": "192.168.0.20",
+                    "switchLinks": ["192.168.0.10"]
+                }
+            ]
+        }
     ]
 }
