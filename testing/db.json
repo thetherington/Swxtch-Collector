@@ -1,0 +1,22 @@
+{
+    "startTime": { "startTime": "2021-05-20T20:34:49.470402958Z" },
+    "serviceStatus": { "status": "running" },
+    "agents": [
+        {
+            "name": "agent001",
+            "ctrl_ip": "10.1.4.28",
+            "ctrl_port": 10800,
+            "data_ip": "10.1.8.26",
+            "data_port": 9999,
+            "data_mac": "00:0D:3A:98:51:5C"
+        },
+        {
+            "name": "agent002",
+            "ctrl_ip": "10.1.4.29",
+            "ctrl_port": 10800,
+            "data_ip": "10.1.8.30",
+            "data_port": 9999,
+            "data_mac": "00:0D:3A:98:59:47"
+        }
+    ]
+}
