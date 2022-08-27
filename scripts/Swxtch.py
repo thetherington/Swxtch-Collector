@@ -1,4 +1,4 @@
-import copy
+import argparse
 import datetime
 import json
 from threading import Thread
@@ -12,7 +12,10 @@ requests.packages.urllib3.disable_warnings()
 
 
 class DebugStatus:
-    def __init__(self):
+    def __init__(self, *args):
+        if args:
+            self.host = args[0]
+
         self.path = "swxtch/debug/v1"
         self.__startTime = Parameters(self.host, self.path, "startTime")
         self.__serviceStatus = Parameters(self.host, self.path, "serviceStatus")
@@ -62,16 +65,37 @@ class DebugStatus:
 
         return [document]
 
+    def fetch_status(self):
+        return self.__serviceStatus.fetch()
+
+    def fetch_startTime(self):
+        return self.__startTime.fetch()
+
+    @classmethod
+    def dispatch_status(cls, host):
+        obj = cls(host)
+        return [obj.path, "serviceStatus", obj.fetch_status()]
+
+    @classmethod
+    def dispatch_startTime(cls, host):
+        obj = cls(host)
+        return [obj.path, "startTime", obj.fetch_startTime()]
+
 
 class DebugAgents:
-    def __init__(self):
+    def __init__(self, *args):
+        if args:
+            self.host = args[0]
+
         self.path = "swxtch/debug/v1"
-        self.__agents = Parameters(self.host, self.path, "agents")
+        self.method = "agents"
+
+        self.__api = Parameters(self.host, self.path, self.method)
 
     def debug_agents_fetch(self):
 
         documents = []
-        agents = self.__agents.fetch()
+        agents = self.__api.fetch()
 
         if agents:
             for agent in agents:
@@ -86,16 +110,28 @@ class DebugAgents:
 
         return documents
 
+    def fetch(self):
+        return self.__api.fetch()
+
+    @classmethod
+    def dispatch(cls, host):
+        obj = cls(host)
+        return [obj.path, obj.method, obj.fetch()]
+
 
 class SwitchLinks:
-    def __init__(self):
+    def __init__(self, *args):
+        if args:
+            self.host = args[0]
+
         self.path = "swxtch/mesh/v1/tool"
-        self.__links = Parameters(self.host, self.path, "listSwitchLinks")
+        self.method = "listSwitchLinks"
+        self.__api = Parameters(self.host, self.path, self.method)
 
     def switch_links_fetch(self):
 
         documents = []
-        meshes = self.__links.fetch()
+        meshes = self.__api.fetch()
 
         if meshes and isinstance(meshes, list):
             for mesh in meshes:
@@ -124,16 +160,28 @@ class SwitchLinks:
 
         return documents
 
+    def fetch(self):
+        return self.__api.fetch()
+
+    @classmethod
+    def dispatch(cls, host):
+        obj = cls(host)
+        return [obj.path, obj.method, obj.fetch()]
+
 
 class SwitchRouteTable:
-    def __init__(self):
+    def __init__(self, *args):
+        if args:
+            self.host = args[0]
+
         self.path = "swxtch/mesh/v1/tool"
-        self.__routeTable = Parameters(self.host, self.path, "listSwitchRouteTable")
+        self.method = "listSwitchRouteTable"
+        self.__api = Parameters(self.host, self.path, self.method)
 
     def switch_route_table_fetch(self):
 
         documents = []
-        meshes = self.__routeTable.fetch()
+        meshes = self.__api.fetch()
 
         if meshes and isinstance(meshes, list):
             for mesh in meshes:
@@ -162,16 +210,28 @@ class SwitchRouteTable:
 
         return documents
 
+    def fetch(self):
+        return self.__api.fetch()
+
+    @classmethod
+    def dispatch(cls, host):
+        obj = cls(host)
+        return [obj.path, obj.method, obj.fetch()]
+
 
 class SwitchAgentSubscriptions:
-    def __init__(self):
+    def __init__(self, *args):
+        if args:
+            self.host = args[0]
+
         self.path = "swxtch/mesh/v1/tool"
-        self.__agentSub = Parameters(self.host, self.path, "listAgentSubscription")
+        self.method = "listAgentSubscription"
+        self.__api = Parameters(self.host, self.path, self.method)
 
     def switch_agent_subs_fetch(self):
 
         documents = []
-        subs = self.__agentSub.fetch()
+        subs = self.__api.fetch()
 
         if subs and isinstance(subs, list):
             for sub in subs:
@@ -198,6 +258,14 @@ class SwitchAgentSubscriptions:
                     continue
 
         return documents
+
+    def fetch(self):
+        return self.__api.fetch()
+
+    @classmethod
+    def dispatch(cls, host):
+        obj = cls(host)
+        return [obj.path, obj.method, obj.fetch()]
 
 
 class Parameters:
@@ -242,7 +310,7 @@ class Swxtch(
         self.host = host
 
         if args:
-            (self.magnum_cluster,) = args
+            (self.magnum,) = args
 
         DebugStatus.__init__(self)
         DebugAgents.__init__(self)
@@ -261,9 +329,9 @@ class Swxtch(
         self.documents = []
 
     @classmethod
-    def magnum_annotate(cls, host, cluster_ip):
+    def magnum_annotate(cls, host, magnum):
         # Create magnum obj
-        return cls(host, cluster_ip)
+        return cls(host, magnum)
 
     def store(self, func):
         self.documents.extend(func())
@@ -284,7 +352,91 @@ class Swxtch(
 
 
 def main():
-    swxtch = Swxtch(host="localhost:3000")
+    args_parser = argparse.ArgumentParser(description="Swxtch API Poller Program")
+
+    args_parser.add_argument(
+        "-host",
+        "--swxtch-host",
+        required=False,
+        type=str,
+        metavar="<ip>",
+        default="localhost:3000",
+        help="Swxtch IP Address (default localhost:3000)",
+    )
+
+    sub = args_parser.add_subparsers(dest="which")
+    sub.required = False
+
+    sub_magnum = sub.add_parser("magnum", help="Use Magnum Annotations")
+    sub_magnum.set_defaults(which="magnum")
+
+    sub_magnum.add_argument(
+        "-cluster",
+        "--cluster-address",
+        required=True,
+        type=str,
+        metavar="<ip>",
+        help="Magnum Cluster IP Address",
+    )
+
+    sub_magnum.add_argument(
+        "-host",
+        "--swxtch-host",
+        required=False,
+        type=str,
+        metavar="<ip>",
+        default="localhost:3000",
+        help="Swxtch IP Address (default localhost:3000)",
+    )
+
+    sub_export = sub.add_parser("export", help="Generate JSON Server Files")
+    sub_export.set_defaults(which="export")
+
+    sub_export.add_argument(
+        "-host",
+        "--swxtch-host",
+        required=False,
+        type=str,
+        metavar="<ip>",
+        default="localhost:3000",
+        help="Swxtch IP Address (default localhost:3000)",
+    )
+
+    args = args_parser.parse_args()
+
+    if args.which == "export":
+
+        dispatch_funcs = [
+            DebugStatus.dispatch_startTime,
+            DebugStatus.dispatch_status,
+            DebugAgents.dispatch,
+            SwitchLinks.dispatch,
+            SwitchRouteTable.dispatch,
+            SwitchAgentSubscriptions.dispatch,
+        ]
+
+        db = {}
+        routes = {}
+
+        for func in dispatch_funcs:
+            path, method, data = func(args.swxtch_host)
+
+            db.update({method: data})
+            routes["/{}/{}".format(path, method)] = method
+
+        with open("db.json", "w") as outfile:
+            json.dump(db, outfile, indent=4)
+
+        with open("routes.json", "w") as outfile:
+            json.dump(routes, outfile, indent=4)
+
+        quit()
+
+    if args.which == "magnum":
+        print("Not yet implemented")
+        quit()
+
+    swxtch = Swxtch(host=args.swxtch_host)
 
     print(json.dumps(swxtch.collect, indent=1))
 
