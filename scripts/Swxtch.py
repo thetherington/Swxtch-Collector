@@ -268,6 +268,62 @@ class SwitchAgentSubscriptions:
         return [obj.path, obj.method, obj.fetch()]
 
 
+class SwitchSubscriptions:
+    def __init__(self, *args):
+        if args:
+            self.host = args[0]
+
+        self.path = "swxtch/mesh/v1/tool"
+        self.method = "listSwitchSubscription"
+        self.__api = Parameters(self.host, self.path, self.method)
+
+    def switch_subscriptions_fetch(self):
+
+        documents = []
+        meshes = self.__api.fetch()
+
+        if meshes and isinstance(meshes, list):
+            for mesh in meshes:
+
+                if mesh["mcastGroupSwitchData"] and isinstance(
+                    mesh["mcastGroupSwitchData"], list
+                ):
+
+                    for sub in mesh["mcastGroupSwitchData"]:
+
+                        try:
+
+                            fields = {
+                                "s_meshname": mesh["meshName"],
+                                "s_mcastgroupip": sub["mcastGroupIp"],
+                                "as_subswitchmap": [
+                                    "{}:{}".format(k, v)
+                                    for k, v in sub["subscribedSwitchMap"].items()
+                                ],
+                            }
+
+                            document = {
+                                "fields": fields,
+                                "host": self.host,
+                                "name": "switch_sub",
+                            }
+
+                            documents.append(document)
+
+                        except Exception:
+                            pass
+
+        return documents
+
+    def fetch(self):
+        return self.__api.fetch()
+
+    @classmethod
+    def dispatch(cls, host):
+        obj = cls(host)
+        return [obj.path, obj.method, obj.fetch()]
+
+
 class Parameters:
     def __init__(self, host, path, method):
         self.headers = {"content-type": "application/json"}
@@ -304,7 +360,12 @@ class Parameters:
 
 
 class Swxtch(
-    DebugStatus, DebugAgents, SwitchLinks, SwitchRouteTable, SwitchAgentSubscriptions
+    DebugStatus,
+    DebugAgents,
+    SwitchLinks,
+    SwitchRouteTable,
+    SwitchAgentSubscriptions,
+    SwitchSubscriptions,
 ):
     def __init__(self, host, *args):
         self.host = host
@@ -317,6 +378,7 @@ class Swxtch(
         SwitchLinks.__init__(self)
         SwitchRouteTable.__init__(self)
         SwitchAgentSubscriptions.__init__(self)
+        SwitchSubscriptions.__init__(self)
 
         self.exec_list = [
             self.debug_status_fetch,
@@ -324,6 +386,7 @@ class Swxtch(
             self.switch_links_fetch,
             self.switch_route_table_fetch,
             self.switch_agent_subs_fetch,
+            self.switch_subscriptions_fetch,
         ]
 
         self.documents = []
@@ -413,6 +476,7 @@ def main():
             SwitchLinks.dispatch,
             SwitchRouteTable.dispatch,
             SwitchAgentSubscriptions.dispatch,
+            SwitchSubscriptions.dispatch,
         ]
 
         db = {}

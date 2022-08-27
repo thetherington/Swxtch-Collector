@@ -57,5 +57,18 @@
                 "192.168.0.10": "192.168.0.10"
             }
         }
+    ],
+    "listSwitchSubscription": [
+        {
+            "meshName": "customer-mesh",
+            "mcastGroupSwitchData": [
+                {
+                    "mcastGroupIp": "224.1.1.234",
+                    "subscribedSwitchMap": {
+                        "192.168.0.20": "192.168.0.10"
+                    }
+                }
+            ]
+        }
     ]
 }
