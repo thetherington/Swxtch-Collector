@@ -11,20 +11,65 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 requests.packages.urllib3.disable_warnings()
 
 
-class DebugStatus:
-    def __init__(self, *args):
-        if args:
-            self.host = args[0]
+class Base:
+    def __init__(self, host, path, method):
+        self.host = host
+        self.path = path
+        self.method = method
+        self.headers = {"content-type": "application/json"}
+        self.url = "http://{}/{}/{}".format(self.host, self.path, self.method)
+        self.store = {}
 
-        self.path = "swxtch/debug/v1"
-        self.__startTime = Parameters(self.host, self.path, "startTime")
-        self.__serviceStatus = Parameters(self.host, self.path, "serviceStatus")
+    def fetch(self, url=None):
 
-    def debug_status_fetch(self):
+        try:
+
+            url = url or self.url
+
+            resp = requests.get(url, verify=False, timeout=10)
+            resp.close()
+
+            data = json.loads(resp.text)
+
+            return data
+
+        except Exception as error:
+            with open(self.host, "a+") as log:
+                log.write(
+                    str(datetime.datetime.now())
+                    + " --- "
+                    + self.method
+                    + "\t"
+                    + str(error)
+                    + "\r\n"
+                )
+
+            return None
+
+    def get(self, key):
+        return self.store.get(key, {})
+
+    @classmethod
+    def dispatch(cls, host):
+        obj = cls(host=host)  # pylint: disable=no-value-for-parameter
+        return [obj.path, obj.method, obj.fetch()]
+
+
+class DebugStatus(Base):
+    def __init__(self, host):
+        super().__init__(host=host, path="swxtch/debug/v1", method="serviceStatus")
+
+        self.method_start_time = "startTime"
+
+        self.url_start_time = "http://{}/{}/{}".format(
+            self.host, self.path, self.method_start_time
+        )
+
+    def collect(self, **context):  # pylint: disable=unused-argument
 
         fields = {}
 
-        start_time = self.__startTime.fetch()
+        start_time = self.fetch(self.url_start_time)
 
         if start_time:
 
@@ -49,7 +94,7 @@ class DebugStatus:
             except Exception:
                 fields.update({"t_startTime": start_time["startTime"]})
 
-        service_status = self.__serviceStatus.fetch()
+        service_status = self.fetch()
 
         if service_status:
 
@@ -65,37 +110,22 @@ class DebugStatus:
 
         return [document]
 
-    def fetch_status(self):
-        return self.__serviceStatus.fetch()
-
-    def fetch_startTime(self):
-        return self.__startTime.fetch()
-
     @classmethod
-    def dispatch_status(cls, host):
+    def dispatch_start_time(cls, host):
         obj = cls(host)
-        return [obj.path, "serviceStatus", obj.fetch_status()]
-
-    @classmethod
-    def dispatch_startTime(cls, host):
-        obj = cls(host)
-        return [obj.path, "startTime", obj.fetch_startTime()]
+        return [obj.path, "startTime", obj.fetch(obj.url_start_time)]
 
 
-class DebugAgents:
-    def __init__(self, *args):
-        if args:
-            self.host = args[0]
+class DebugAgents(Base):
+    def __init__(self, host):
+        super().__init__(host=host, path="swxtch/debug/v1", method="agents")
 
-        self.path = "swxtch/debug/v1"
-        self.method = "agents"
-
-        self.__api = Parameters(self.host, self.path, self.method)
-
-    def debug_agents_fetch(self):
+    def collect(self, **context):  # pylint: disable=unused-argument
 
         documents = []
-        agents = self.__api.fetch()
+        agents = self.fetch()
+
+        # annotations = context.get("annotations") or []
 
         if agents:
             for agent in agents:
@@ -105,33 +135,24 @@ class DebugAgents:
                     document = {"fields": agent, "host": self.host, "name": "debug_agent"}
                     documents.append(document)
 
+                    self.store.update({agent["name"]: agent})
+
                 except Exception:
                     continue
 
         return documents
 
-    def fetch(self):
-        return self.__api.fetch()
 
-    @classmethod
-    def dispatch(cls, host):
-        obj = cls(host)
-        return [obj.path, obj.method, obj.fetch()]
+class SwitchLinks(Base):
+    def __init__(self, host):
+        super().__init__(host=host, path="swxtch/mesh/v1/tool", method="listSwitchLinks")
 
-
-class SwitchLinks:
-    def __init__(self, *args):
-        if args:
-            self.host = args[0]
-
-        self.path = "swxtch/mesh/v1/tool"
-        self.method = "listSwitchLinks"
-        self.__api = Parameters(self.host, self.path, self.method)
-
-    def switch_links_fetch(self):
+    def collect(self, **context):  # pylint: disable=unused-argument
 
         documents = []
-        meshes = self.__api.fetch()
+        meshes = self.fetch()
+
+        # annotations = context.get("annotations") or []
 
         if meshes and isinstance(meshes, list):
             for mesh in meshes:
@@ -160,28 +181,19 @@ class SwitchLinks:
 
         return documents
 
-    def fetch(self):
-        return self.__api.fetch()
 
-    @classmethod
-    def dispatch(cls, host):
-        obj = cls(host)
-        return [obj.path, obj.method, obj.fetch()]
+class SwitchRouteTable(Base):
+    def __init__(self, host):
+        super().__init__(
+            host=host, path="swxtch/mesh/v1/tool", method="listSwitchRouteTable"
+        )
 
-
-class SwitchRouteTable:
-    def __init__(self, *args):
-        if args:
-            self.host = args[0]
-
-        self.path = "swxtch/mesh/v1/tool"
-        self.method = "listSwitchRouteTable"
-        self.__api = Parameters(self.host, self.path, self.method)
-
-    def switch_route_table_fetch(self):
+    def collect(self, **context):  # pylint: disable=unused-argument
 
         documents = []
-        meshes = self.__api.fetch()
+        meshes = self.fetch()
+
+        # annotations = context.get("annotations") or []
 
         if meshes and isinstance(meshes, list):
             for mesh in meshes:
@@ -210,28 +222,19 @@ class SwitchRouteTable:
 
         return documents
 
-    def fetch(self):
-        return self.__api.fetch()
 
-    @classmethod
-    def dispatch(cls, host):
-        obj = cls(host)
-        return [obj.path, obj.method, obj.fetch()]
+class SwitchAgentSubscriptions(Base):
+    def __init__(self, host):
+        super().__init__(
+            host=host, path="swxtch/mesh/v1/tool", method="listAgentSubscription"
+        )
 
-
-class SwitchAgentSubscriptions:
-    def __init__(self, *args):
-        if args:
-            self.host = args[0]
-
-        self.path = "swxtch/mesh/v1/tool"
-        self.method = "listAgentSubscription"
-        self.__api = Parameters(self.host, self.path, self.method)
-
-    def switch_agent_subs_fetch(self):
+    def collect(self, **context):  # pylint: disable=unused-argument
 
         documents = []
-        subs = self.__api.fetch()
+        subs = self.fetch()
+
+        # annotations = context.get("annotations") or []
 
         if subs and isinstance(subs, list):
             for sub in subs:
@@ -259,28 +262,19 @@ class SwitchAgentSubscriptions:
 
         return documents
 
-    def fetch(self):
-        return self.__api.fetch()
 
-    @classmethod
-    def dispatch(cls, host):
-        obj = cls(host)
-        return [obj.path, obj.method, obj.fetch()]
+class SwitchSubscriptions(Base):
+    def __init__(self, host):
+        super().__init__(
+            host=host, path="swxtch/mesh/v1/tool", method="listSwitchSubscription"
+        )
 
-
-class SwitchSubscriptions:
-    def __init__(self, *args):
-        if args:
-            self.host = args[0]
-
-        self.path = "swxtch/mesh/v1/tool"
-        self.method = "listSwitchSubscription"
-        self.__api = Parameters(self.host, self.path, self.method)
-
-    def switch_subscriptions_fetch(self):
+    def collect(self, **context):  # pylint: disable=unused-argument
 
         documents = []
-        meshes = self.__api.fetch()
+        meshes = self.fetch()
+
+        # agents = context.get("agents") or []
 
         if meshes and isinstance(meshes, list):
             for mesh in meshes:
@@ -315,79 +309,36 @@ class SwitchSubscriptions:
 
         return documents
 
-    def fetch(self):
-        return self.__api.fetch()
 
-    @classmethod
-    def dispatch(cls, host):
-        obj = cls(host)
-        return [obj.path, obj.method, obj.fetch()]
-
-
-class Parameters:
-    def __init__(self, host, path, method):
-        self.headers = {"content-type": "application/json"}
-
-        self.host = host
-        self.path = path
-        self.method = method
-
-        self.url = "http://{}/{}/{}".format(self.host, self.path, self.method)
-
-    def fetch(self):
-
-        try:
-            resp = requests.get(self.url, verify=False, timeout=10)
-
-            resp.close()
-
-            data = json.loads(resp.text)
-
-            return data
-
-        except Exception as error:
-            with open(self.host, "a+") as log:
-                log.write(
-                    str(datetime.datetime.now())
-                    + " --- "
-                    + self.method
-                    + "\t"
-                    + str(error)
-                    + "\r\n"
-                )
-
-            return None
-
-
-class Swxtch(
-    DebugStatus,
-    DebugAgents,
-    SwitchLinks,
-    SwitchRouteTable,
-    SwitchAgentSubscriptions,
-    SwitchSubscriptions,
-):
+class Swxtch:
     def __init__(self, host, *args):
         self.host = host
 
         if args:
             (self.magnum,) = args
 
-        DebugStatus.__init__(self)
-        DebugAgents.__init__(self)
-        SwitchLinks.__init__(self)
-        SwitchRouteTable.__init__(self)
-        SwitchAgentSubscriptions.__init__(self)
-        SwitchSubscriptions.__init__(self)
+        self.debug_status = DebugStatus(host=self.host)
+        self.debug_agents = DebugAgents(host=self.host)
+        self.switch_links = SwitchLinks(host=self.host)
+        self.switch_route_table = SwitchRouteTable(host=self.host)
+        self.agent_subscriptions = SwitchAgentSubscriptions(host=self.host)
+        self.switch_suscriptions = SwitchSubscriptions(host=self.host)
 
         self.exec_list = [
-            self.debug_status_fetch,
-            self.debug_agents_fetch,
-            self.switch_links_fetch,
-            self.switch_route_table_fetch,
-            self.switch_agent_subs_fetch,
-            self.switch_subscriptions_fetch,
+            self.debug_status.collect,
+            self.debug_agents.collect,
+            self.switch_links.collect,
+            self.switch_route_table.collect,
+            self.agent_subscriptions.collect,
+            self.switch_suscriptions.collect,
         ]
+
+        self.context = {
+            "agents": self.debug_agents.get,
+            "links": self.switch_links.get,
+            "routes": self.switch_route_table.get,
+            "magnum": None,
+        }
 
         self.documents = []
 
@@ -396,14 +347,17 @@ class Swxtch(
         # Create magnum obj
         return cls(host, magnum)
 
-    def store(self, func):
-        self.documents.extend(func())
+    def store(self, func, **context):
+        self.documents.extend(func(**context))
 
     @property
     def collect(self):
         self.documents = []
 
-        threads = [Thread(target=self.store, args=(func,)) for func in self.exec_list]
+        threads = [
+            Thread(target=self.store, args=(func,), kwargs=self.context)
+            for func in self.exec_list
+        ]
 
         for x in threads:
             x.start()
@@ -470,8 +424,8 @@ def main():
     if args.which == "export":
 
         dispatch_funcs = [
-            DebugStatus.dispatch_startTime,
-            DebugStatus.dispatch_status,
+            DebugStatus.dispatch,
+            DebugStatus.dispatch_start_time,
             DebugAgents.dispatch,
             SwitchLinks.dispatch,
             SwitchRouteTable.dispatch,
@@ -502,7 +456,9 @@ def main():
 
     swxtch = Swxtch(host=args.swxtch_host)
 
-    print(json.dumps(swxtch.collect, indent=1))
+    data = swxtch.collect
+    print(json.dumps(data, indent=1))
+    print(len(data))
 
 
 if __name__ == "__main__":
