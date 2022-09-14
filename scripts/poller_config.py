@@ -10,12 +10,18 @@ class Plugin(InsitePlugin):
 
     def fetch(self, hosts):
 
+        magnum = None
+
         try:
 
             self.collector
 
         except Exception:
 
-            self.collector = Swxtch(hosts[-1])
+            if magnum:
+                self.collector = Swxtch.magnum(hosts[-1], magnum)
+
+            else:
+                self.collector = Swxtch(hosts[-1])
 
         return json.dumps(self.collector.collect)

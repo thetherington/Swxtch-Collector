@@ -11,6 +11,80 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 requests.packages.urllib3.disable_warnings()
 
 
+class MagnumCache:
+    def __init__(self, cluster_ip, insite="127.0.0.1", nature="mag-1"):
+        self.cluster_ip = cluster_ip
+        self.insite = insite
+        self.nature = nature
+
+        self.config_url = "http://{}/proxy/insite/{}/api/-/model/magnum/{}".format(
+            self.insite, self.nature, self.cluster_ip
+        )
+
+    def catalog_cache(self):
+
+        cache = self.cache_fetch()
+
+        if cache:
+
+            # self.link_db = {}
+            # holders = []
+
+            """
+            self.link_db = {
+                <device_ip> : {
+                    'device-name': <name>,
+                    'device-type': <core, edge>,
+                    'device-size': <36x36>,
+                    <Port #> : {
+                        'end_type': <core,edge>,
+                        'end_name': <device name>,
+                        'end_port': <port>,
+                        'end-device': <device descr>,
+                        'end-size': <36x36>
+            """
+
+            # create core linkage db
+            for device in cache["magnum-controlled-devices"]:
+                print(device)
+
+    def cache_fetch(self):
+
+        try:
+
+            login = {"username": "admin", "password": "admin"}
+
+            response = requests.post(
+                "https://%s/api/v1/login" % self.insite,
+                headers={"Content-Type": "application/json"},
+                data=json.dumps(login),
+                verify=False,
+                timeout=30.0,
+            ).json()
+
+            otbt = {"otbt-is": response["otbt-is"]}
+
+            response = requests.get(
+                self.config_url, params=otbt, verify=False, timeout=30.0
+            )
+
+            return json.loads(response.text)
+
+        except Exception as error:
+
+            with open(self.cluster, "a+") as f:
+                f.write(
+                    str(datetime.datetime.now())
+                    + " --- "
+                    + "magnum_cache_builder"
+                    + "\t"
+                    + str(error)
+                    + "\r\n"
+                )
+
+            return None
+
+
 class Base:
     def __init__(self, host, path, method):
         self.host = host
@@ -125,17 +199,22 @@ class DebugAgents(Base):
         documents = []
         agents = self.fetch()
 
-        # annotations = context.get("annotations") or []
+        magnum = context.get("magnum") or None
 
         if agents:
             for agent in agents:
 
                 try:
 
+                    if magnum:
+                        pass
+
                     document = {"fields": agent, "host": self.host, "name": "debug_agent"}
                     documents.append(document)
 
                     self.store.update({agent["name"]: agent})
+                    self.store.update({agent["ctrl_ip"]: agent})
+                    self.store.update({agent["data_ip"]: agent})
 
                 except Exception:
                     continue
@@ -313,9 +392,15 @@ class SwitchSubscriptions(Base):
 class Swxtch:
     def __init__(self, host, *args):
         self.host = host
+        self.magnumCache = None
+
+        magnum_context = None
 
         if args:
-            (self.magnum,) = args
+
+            self.magnumCache = MagnumCache(*args)
+
+            magnum_context = {"url": self.magnumCache.config_url}
 
         self.debug_status = DebugStatus(host=self.host)
         self.debug_agents = DebugAgents(host=self.host)
@@ -337,15 +422,15 @@ class Swxtch:
             "agents": self.debug_agents.get,
             "links": self.switch_links.get,
             "routes": self.switch_route_table.get,
-            "magnum": None,
+            "magnum": magnum_context,
         }
 
         self.documents = []
 
     @classmethod
-    def magnum_annotate(cls, host, magnum):
+    def magnum(cls, host, *args):
         # Create magnum obj
-        return cls(host, magnum)
+        return cls(host, *args)
 
     def store(self, func, **context):
         self.documents.extend(func(**context))
@@ -406,6 +491,26 @@ def main():
         help="Swxtch IP Address (default localhost:3000)",
     )
 
+    sub_magnum.add_argument(
+        "-insite",
+        "--insite-ip",
+        required=False,
+        type=str,
+        metavar="<ip>",
+        default="127.0.0.1",
+        help="inSITE IP Address)",
+    )
+
+    sub_magnum.add_argument(
+        "-nature",
+        "--nature-name",
+        required=False,
+        type=str,
+        metavar="<name>",
+        default="mag-1",
+        help="inSITE Magnum Nature Name",
+    )
+
     sub_export = sub.add_parser("export", help="Generate JSON Server Files")
     sub_export.set_defaults(which="export")
 
@@ -451,10 +556,13 @@ def main():
         quit()
 
     if args.which == "magnum":
-        print("Not yet implemented")
-        quit()
 
-    swxtch = Swxtch(host=args.swxtch_host)
+        swxtch = Swxtch.magnum(
+            args.swxtch_host, args.cluster_address, args.insite_ip, args.nature_name
+        )
+
+    else:
+        swxtch = Swxtch(host=args.swxtch_host)
 
     data = swxtch.collect
     print(json.dumps(data, indent=1))
